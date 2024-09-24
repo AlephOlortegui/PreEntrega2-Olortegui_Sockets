@@ -1,71 +1,61 @@
 const express = require('express');
-const handlebars = require('express-handlebars');
 const { Server } = require('socket.io');
 const http = require('http');
+const handlebars = require('express-handlebars');
+const path = require('path');
 
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server);
 
-// Configurar Handlebars como motor de plantillas SIN layouts
+// Configuración de Handlebars
 app.engine('handlebars', handlebars.engine({
-  layoutsDir: false // Deshabilitar la búsqueda de layouts
+  defaultLayout: 'main', // Define el layout por defecto
+  layoutsDir: path.join(__dirname, 'views/layouts'), // Directorio de layouts
+  partialsDir: path.join(__dirname, 'views/layouts'), // Directorio de partials
 }));
 app.set('view engine', 'handlebars');
-app.set('views', './views');
+app.set('views', path.join(__dirname, 'views'));
 
-// Middleware para servir archivos estáticos y parsear JSON
-app.use(express.static('public'));
+// Middleware para archivos estáticos
+app.use(express.static(path.join(__dirname, 'public')));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Productos en memoria
-let productos = [];
+// Simulador de base de datos en memoria
+let products = [];
 
-// Ruta para la vista 'home'
+// Rutas
 app.get('/', (req, res) => {
-  res.render('home', { productos });
+    res.render('home', { products });
 });
 
-// Ruta para la vista de tiempo real 'realTimeProducts'
 app.get('/realtimeProducts', (req, res) => {
-  res.render('realTimeProducts');
+    res.render('realTimeProducts', { products });
 });
 
-// Ruta para agregar un nuevo producto vía HTTP
-app.post('/productos', (req, res) => {
-  const { producto } = req.body;
-  if (producto) {
-    productos.push(producto);
-    io.emit('productosActualizados', productos);  // Emitir productos actualizados a través de sockets
-    res.status(201).send('Producto agregado');
-  } else {
-    res.status(400).send('Producto no válido');
-  }
-});
-
-// Websockets: conexión inicial
+// Websockets
 io.on('connection', (socket) => {
-  console.log('Nuevo cliente conectado');
+    console.log('Nuevo cliente conectado');
 
-  // Enviar productos actuales al cliente cuando se conecta
-  socket.emit('productosActuales', productos);
+    // Enviar productos actuales al cliente conectado
+    socket.emit('products', products);
 
-  // Escuchar cuando se agregue un producto nuevo
-  socket.on('nuevoProducto', (producto) => {
-    productos.push(producto);
-    io.emit('productosActualizados', productos);  // Emitir productos actualizados a todos
-  });
+    // Escuchar creación de nuevo producto
+    socket.on('newProduct', (product) => {
+        products.push(product);
+        io.emit('products', products);  // Enviar lista actualizada a todos los clientes
+    });
 
-  // Escuchar cuando se elimine un producto
-  socket.on('eliminarProducto', (index) => {
-    productos.splice(index, 1);
-    io.emit('productosActualizados', productos);  // Emitir productos actualizados a todos
-  });
+    // Escuchar eliminación de producto
+    socket.on('deleteProduct', (productId) => {
+        products = products.filter((product, index) => index !== productId);
+        io.emit('products', products);  // Enviar lista actualizada a todos los clientes
+    });
 });
 
-// Iniciar servidor
+// Iniciar el servidor
 const PORT = 3000;
 server.listen(PORT, () => {
-  console.log(`Servidor escuchando en http://localhost:${PORT}`);
+    console.log(`Servidor escuchando en el puerto ${PORT}`);
 });
