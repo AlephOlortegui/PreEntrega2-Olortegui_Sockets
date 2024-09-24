@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Productos en Tiempo Real</title>
+</head>
+<body>
+  <h1>Gestión de Productos en Tiempo Real</h1>
+
+  <!-- Formulario para agregar productos -->
+  <form id="formProducto">
+    <input type="text" id="producto" placeholder="Nuevo Producto">
+    <button type="submit">Agregar Producto</button>
+  </form>
+
+  <!-- Lista de productos -->
+  <ul id="listaProductos">
+  </ul>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script>
+    const socket = io();
+
+    // Formulario de nuevo producto
+    const form = document.getElementById('formProducto');
+    const inputProducto = document.getElementById('producto');
+    const listaProductos = document.getElementById('listaProductos');
+
+    // Enviar nuevo producto a través de websockets
+    form.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const producto = inputProducto.value;
+      if (producto) {
+        socket.emit('nuevoProducto', producto);
+        inputProducto.value = '';
+      }
+    });
+
+    // Actualizar la lista de productos cuando cambien
+    socket.on('productosActualizados', (productos) => {
+      listaProductos.innerHTML = '';
+      productos.forEach((producto, index) => {
+        const li = document.createElement('li');
+        li.textContent = producto;
+        const botonEliminar = document.createElement('button');
+        botonEliminar.textContent = 'Eliminar';
+        botonEliminar.onclick = () => socket.emit('eliminarProducto', index);
+        li.appendChild(botonEliminar);
+        listaProductos.appendChild(li);
+      });
+    });
+
+    // Mostrar los productos actuales al cargar la página
+    socket.on('productosActuales', (productos) => {
+      productos.forEach((producto, index) => {
+        const li = document.createElement('li');
+        li.textContent = producto;
+        const botonEliminar = document.createElement('button');
+        botonEliminar.textContent = 'Eliminar';
+        botonEliminar.onclick = () => socket.emit('eliminarProducto', index);
+        li.appendChild(botonEliminar);
+        listaProductos.appendChild(li);
+      });
+    });
+  </script>
+</body>
+</html>
